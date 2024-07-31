@@ -13,15 +13,24 @@ type Discord struct {
 	channelID string
 }
 
-func NewDiscord() *Discord { // 関数名をエクスポートするように変更
-	err := godotenv.Load(".env")
+func NewDiscord() *Discord {
+	err := godotenv.Load("./.env")
 	if err != nil {
-		fmt.Println("Error loading .env file")
+		fmt.Println("Error loading .env file:", err)
 		os.Exit(1)
 	}
+
+	token := os.Getenv("DISCORD_TOKEN")
+	channelID := os.Getenv("DISCORD_CHANNEL_ID")
+
+	if token == "" || channelID == "" {
+		fmt.Println("Environment variables DISCORD_TOKEN or DISCORD_CHANNEL_ID are not set")
+		os.Exit(1)
+	}
+
 	return &Discord{
-		os.Getenv("DISCORD_TOKEN"),
-		os.Getenv("DISCORD_CHANNEL_ID"),
+		token:     token,
+		channelID: channelID,
 	}
 }
 
