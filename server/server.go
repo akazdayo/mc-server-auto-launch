@@ -1,23 +1,36 @@
-package minecraft_server
+package server
 
 import (
 	"bufio"
 	"fmt"
 	"io"
 	"os/exec"
-	"strings"
 	"time"
 )
 
-var controlURL string
+type server struct {
+	stop       chan bool
+	isRunning  chan bool
+	controlURL chan string
+	serverIP   chan string
+}
 
-func launchMinecraft(path string, stop chan bool) {
+func NewServer(stop chan bool, isRunning chan bool, controlURL chan string, serverIP chan string) *server {
+	return &server{
+		stop,
+		isRunning,
+		controlURL,
+		serverIP,
+	}
+}
+
+func (s *server) LaunchMinecraft(path string) {
 	fmt.Println("Starting Minecraft")
 	cmd := exec.Command("sh", path)
 	stdin, _ := cmd.StdinPipe()
 
 	//終了時処理
-	<-stop
+	<-s.stop
 	io.WriteString(stdin, "stop\n") // stopコマンドを送信
 	stdin.Close()
 	cmd.Wait()
@@ -31,7 +44,7 @@ func launchMinecraft(path string, stop chan bool) {
 	fmt.Println("Minecraft has stopped")
 }
 
-func launchSSNet(path string, stop chan bool) {
+func (s *server) LaunchSSNet(path string) {
 	fmt.Println("Starting Secure Share Net")
 	cmd := exec.Command("sh", path)
 
@@ -67,7 +80,7 @@ func launchSSNet(path string, stop chan bool) {
 	}()
 
 	// 終了時処理
-	<-stop
+	<-s.stop
 	if err := cmd.Wait(); err != nil {
 		fmt.Printf("Error waiting for command: %s\n", err)
 		return
@@ -78,18 +91,19 @@ func launchSSNet(path string, stop chan bool) {
 
 // 出力を加工する関数
 func checkOutput(output string) string {
-	if strings.Contains(output, "コントロールURL") {
-		controlURL = output
-	} else if strings.Contains(output, "公開開始") {
-	}
+	//if strings.Contains(output, "コントロールURL") {
+	//} else if strings.Contains(output, "公開開始") {
+	//}
 	return fmt.Sprintf("[%s] %s\n", time.Now(), output)
 }
 
+/*
 func main() {
 	stop := make(chan bool)
-	go launchMinecraft("./test.sh", stop)
-	go launchSSNet("./ssnet.sh", stop)
+	go LaunchMinecraft("./test.sh", stop)
+	go LaunchSSNet("./ssnet.sh", stop)
 	time.Sleep(10 * time.Second)
 	stop <- true
 	time.Sleep(2 * time.Second)
 }
+*/

@@ -3,10 +3,8 @@ module github.com/akazdayo/mc-server-auto-launch
 go 1.22.2
 
 require (
-	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.16 // indirect
-	github.com/mattn/go-tty v0.0.7 // indirect
-	github.com/rivo/uniseg v0.4.7 // indirect
-	golang.org/x/sys v0.22.0 // indirect
+	github.com/bwmarrin/discordgo v0.28.1 // indirect
+	github.com/gorilla/websocket v1.4.2 // indirect
+	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
+	golang.org/x/sys v0.0.0-20201119102817-f84b799fce68 // indirect
 )
