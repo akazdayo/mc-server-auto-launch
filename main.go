@@ -20,8 +20,8 @@ func main() {
 	serverIP := make(chan string)
 
 	s := server.NewServer(isRunning, controlURL, serverIP)
-	go s.LaunchMinecraft("./test.sh")
-	go s.LaunchSSNet("./ssnet.sh")
+	go s.LaunchMinecraft("./debug/test.sh")
+	go s.LaunchSSNet("./debug/ssnet.sh")
 	time.Sleep(10 * time.Second)
 	fmt.Println("Stopping server")
 	s.QuitServer()

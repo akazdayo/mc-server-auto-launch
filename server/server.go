@@ -28,10 +28,17 @@ func NewServer(isRunning chan bool, controlURL chan string, serverIP chan string
 }
 
 func (s *server) LaunchMinecraft(path string) {
-	defer s.wg.Add(1)
+	s.wg.Add(1)
+	defer s.wg.Done()
 	fmt.Println("Starting Minecraft")
 	cmd := exec.Command("sh", path)
+
+	// 入出力を取得
 	stdin, _ := cmd.StdinPipe()
+	stdout, _ := cmd.StdoutPipe()
+
+	// 出力を取得
+	s.getOutput(stdout, checkOutput)
 
 	//終了時処理
 	<-s.stop
@@ -46,20 +53,17 @@ func (s *server) LaunchMinecraft(path string) {
 	}
 	fmt.Printf("結果: %s\n", out)
 	fmt.Println("Minecraft has stopped")
-	defer s.wg.Done()
+
 }
 
 func (s *server) LaunchSSNet(path string) {
-	defer s.wg.Add(1)
+	s.wg.Add(1)
+	defer s.wg.Done()
 	fmt.Println("Starting Secure Share Net")
 	cmd := exec.Command("sh", path)
 
 	// 標準出力を取得
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		fmt.Printf("Error creating StdoutPipe: %s\n", err)
-		return
-	}
+	stdout, _ := cmd.StdoutPipe()
 
 	// コマンドを開始
 	if err := cmd.Start(); err != nil {
@@ -68,35 +72,29 @@ func (s *server) LaunchSSNet(path string) {
 	}
 
 	// 標準出力をリアルタイムで読み取る
-	go func() {
-		reader := bufio.NewReader(stdout)
-		for {
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				fmt.Printf("Error reading stdout: %s\n", err)
-				return
-			}
-			// 出力を加工
-			processedLine := checkOutput(line)
-			fmt.Print(processedLine)
-		}
-	}()
+	go s.getOutput(stdout, checkOutput)
 
 	// 終了時処理
 	<-s.stop
-	fmt.Println("Stopping Secure Share Net")
-	out, err := cmd.Output()
-	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		return
-	}
-	fmt.Println(out)
-
+	stdout.Close()
 	fmt.Println("Secure Share Net has stopped")
-	defer s.wg.Done()
+}
+
+func (s *server) getOutput(stdout io.Reader, callback func(string) string) {
+	reader := bufio.NewReader(stdout)
+	for range s.stop { // 書いたのCopilotだから理解できてない。後で調べよう
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Printf("Error reading stdout: %s\n", err)
+			return
+		}
+		// 処理
+		processedLine := callback(line)
+		fmt.Print(processedLine)
+	}
 }
 
 func (s *server) QuitServer() {
