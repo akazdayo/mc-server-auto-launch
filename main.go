@@ -23,9 +23,8 @@ func main() {
 	go s.LaunchMinecraft("./test.sh")
 	go s.LaunchSSNet("./ssnet.sh")
 	time.Sleep(10 * time.Second)
-
-	s.QuitServer()
 	fmt.Println("Stopping server")
+	s.QuitServer()
 	time.Sleep(3 * time.Second)
 	fmt.Println("Server has stopped")
 }

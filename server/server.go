@@ -5,23 +5,22 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"sync"
 	"time"
 )
 
 type server struct {
-	stop        chan struct{}
-	mc_stopped  chan bool
-	ssn_stopped chan bool
-	isRunning   chan bool
-	controlURL  chan string
-	serverIP    chan string
+	stop       chan struct{}
+	wg         sync.WaitGroup
+	isRunning  chan bool
+	controlURL chan string
+	serverIP   chan string
 }
 
 func NewServer(isRunning chan bool, controlURL chan string, serverIP chan string) *server {
 	return &server{
 		make(chan struct{}),
-		make(chan bool),
-		make(chan bool),
+		sync.WaitGroup{},
 		isRunning,
 		controlURL,
 		serverIP,
@@ -29,6 +28,7 @@ func NewServer(isRunning chan bool, controlURL chan string, serverIP chan string
 }
 
 func (s *server) LaunchMinecraft(path string) {
+	defer s.wg.Add(1)
 	fmt.Println("Starting Minecraft")
 	cmd := exec.Command("sh", path)
 	stdin, _ := cmd.StdinPipe()
@@ -46,10 +46,11 @@ func (s *server) LaunchMinecraft(path string) {
 	}
 	fmt.Printf("結果: %s\n", out)
 	fmt.Println("Minecraft has stopped")
-	s.mc_stopped <- true
+	defer s.wg.Done()
 }
 
 func (s *server) LaunchSSNet(path string) {
+	defer s.wg.Add(1)
 	fmt.Println("Starting Secure Share Net")
 	cmd := exec.Command("sh", path)
 
@@ -67,26 +68,25 @@ func (s *server) LaunchSSNet(path string) {
 	}
 
 	// 標準出力をリアルタイムで読み取る
-	reader := bufio.NewReader(stdout)
-	select {
-	case <-s.stop:
-		break
-
-	default:
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
+	go func() {
+		reader := bufio.NewReader(stdout)
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				fmt.Printf("Error reading stdout: %s\n", err)
+				return
 			}
-			fmt.Printf("Error reading stdout: %s\n", err)
-			return
+			// 出力を加工
+			processedLine := checkOutput(line)
+			fmt.Print(processedLine)
 		}
-		// 出力を加工
-		processedLine := checkOutput(line)
-		fmt.Println(processedLine)
-	}
+	}()
 
 	// 終了時処理
+	<-s.stop
 	fmt.Println("Stopping Secure Share Net")
 	out, err := cmd.Output()
 	if err != nil {
@@ -96,13 +96,13 @@ func (s *server) LaunchSSNet(path string) {
 	fmt.Println(out)
 
 	fmt.Println("Secure Share Net has stopped")
-	s.ssn_stopped <- true
+	defer s.wg.Done()
 }
 
 func (s *server) QuitServer() {
+	fmt.Println("Stopping server")
 	close(s.stop)
-	<-s.mc_stopped
-	<-s.ssn_stopped
+	s.wg.Wait()
 }
 
 // 出力を加工する関数
@@ -112,14 +112,3 @@ func checkOutput(output string) string {
 	//}
 	return fmt.Sprintf("[%s] %s\n", time.Now(), output)
 }
-
-/*
-func main() {
-	stop := make(chan bool)
-	go LaunchMinecraft("./test.sh", stop)
-	go LaunchSSNet("./ssnet.sh", stop)
-	time.Sleep(10 * time.Second)
-	stop <- true
-	time.Sleep(2 * time.Second)
-}
-*/
