@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/akazdayo/mc-server-auto-launch/discord"
 )
 
 type server struct {
+	disbot     *discord.Discord
 	stop       chan struct{}
 	wg         sync.WaitGroup
 	isRunning  chan bool
@@ -19,6 +23,7 @@ type server struct {
 
 func NewServer(isRunning chan bool, controlURL chan string, serverIP chan string) *server {
 	return &server{
+		discord.NewDiscord(),
 		make(chan struct{}),
 		sync.WaitGroup{},
 		isRunning,
@@ -44,7 +49,7 @@ func (s *server) LaunchMinecraft(path string) {
 	}
 
 	// 出力を表示
-	go s.getOutput(stdout, checkOutput)
+	go s.getOutput(stdout, s.checkSSNOutput)
 
 	//終了時処理
 	<-s.stop
@@ -73,7 +78,7 @@ func (s *server) LaunchSSNet(path string) {
 	}
 
 	// 標準出力をリアルタイムで読み取る
-	go s.getOutput(stdout, checkOutput)
+	go s.getOutput(stdout, s.checkSSNOutput)
 
 	// 終了時処理
 	<-s.stop
@@ -105,9 +110,11 @@ func (s *server) QuitServer() {
 }
 
 // 出力を加工する関数
-func checkOutput(output string) string {
-	//if strings.Contains(output, "コントロールURL") {
-	//} else if strings.Contains(output, "公開開始") {
-	//}
+func (s *server) checkSSNOutput(output string) string {
+	if strings.Contains(output, "コントロールURL") {
+		s.disbot.Send(output)
+	} else if strings.Contains(output, "公開開始") {
+		s.disbot.Send(output)
+	}
 	return fmt.Sprintf("[%s] %s\n", time.Now(), output)
 }
