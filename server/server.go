@@ -9,15 +9,19 @@ import (
 )
 
 type server struct {
-	stop       chan bool
-	isRunning  chan bool
-	controlURL chan string
-	serverIP   chan string
+	stop        chan struct{}
+	mc_stopped  chan bool
+	ssn_stopped chan bool
+	isRunning   chan bool
+	controlURL  chan string
+	serverIP    chan string
 }
 
-func NewServer(stop chan bool, isRunning chan bool, controlURL chan string, serverIP chan string) *server {
+func NewServer(isRunning chan bool, controlURL chan string, serverIP chan string) *server {
 	return &server{
-		stop,
+		make(chan struct{}),
+		make(chan bool),
+		make(chan bool),
 		isRunning,
 		controlURL,
 		serverIP,
@@ -42,6 +46,7 @@ func (s *server) LaunchMinecraft(path string) {
 	}
 	fmt.Printf("結果: %s\n", out)
 	fmt.Println("Minecraft has stopped")
+	s.mc_stopped <- true
 }
 
 func (s *server) LaunchSSNet(path string) {
@@ -62,31 +67,42 @@ func (s *server) LaunchSSNet(path string) {
 	}
 
 	// 標準出力をリアルタイムで読み取る
-	go func() {
-		reader := bufio.NewReader(stdout)
-		for {
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				fmt.Printf("Error reading stdout: %s\n", err)
-				return
-			}
-			// 出力を加工
-			processedLine := checkOutput(line)
-			fmt.Print(processedLine)
-		}
-	}()
+	reader := bufio.NewReader(stdout)
+	select {
+	case <-s.stop:
+		break
 
-	// 終了時処理
-	<-s.stop
-	if err := cmd.Wait(); err != nil {
-		fmt.Printf("Error waiting for command: %s\n", err)
-		return
+	default:
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Printf("Error reading stdout: %s\n", err)
+			return
+		}
+		// 出力を加工
+		processedLine := checkOutput(line)
+		fmt.Println(processedLine)
 	}
 
+	// 終了時処理
+	fmt.Println("Stopping Secure Share Net")
+	out, err := cmd.Output()
+	if err != nil {
+		fmt.Printf("Error: %s\n", err)
+		return
+	}
+	fmt.Println(out)
+
 	fmt.Println("Secure Share Net has stopped")
+	s.ssn_stopped <- true
+}
+
+func (s *server) QuitServer() {
+	close(s.stop)
+	<-s.mc_stopped
+	<-s.ssn_stopped
 }
 
 // 出力を加工する関数

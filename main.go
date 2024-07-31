@@ -1,6 +1,11 @@
 package main
 
-import "github.com/akazdayo/mc-server-auto-launch/server"
+import (
+	"fmt"
+	"time"
+
+	"github.com/akazdayo/mc-server-auto-launch/server"
+)
 
 const (
 	DiscordToken     = "Discord Token Here"
@@ -10,12 +15,17 @@ const (
 )
 
 func main() {
-	quit := make(chan bool)
 	isRunning := make(chan bool)
 	controlURL := make(chan string)
 	serverIP := make(chan string)
 
-	s := server.NewServer(quit, isRunning, controlURL, serverIP)
-	go s.LaunchMinecraft("")
-	go s.LaunchSSNet("")
+	s := server.NewServer(isRunning, controlURL, serverIP)
+	go s.LaunchMinecraft("./test.sh")
+	go s.LaunchSSNet("./ssnet.sh")
+	time.Sleep(10 * time.Second)
+
+	s.QuitServer()
+	fmt.Println("Stopping server")
+	time.Sleep(3 * time.Second)
+	fmt.Println("Server has stopped")
 }
