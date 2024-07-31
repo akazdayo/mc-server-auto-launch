@@ -37,21 +37,22 @@ func (s *server) LaunchMinecraft(path string) {
 	stdin, _ := cmd.StdinPipe()
 	stdout, _ := cmd.StdoutPipe()
 
-	// 出力を取得
-	s.getOutput(stdout, checkOutput)
+	// コマンドを開始
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Error starting command: %s\n", err)
+		return
+	}
+
+	// 出力を表示
+	go s.getOutput(stdout, checkOutput)
 
 	//終了時処理
 	<-s.stop
+	fmt.Println("Stopping Minecraft")
 	io.WriteString(stdin, "stop\n") // stopコマンドを送信
 	stdin.Close()
 	cmd.Wait()
 
-	out, err := cmd.Output()
-	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		return
-	}
-	fmt.Printf("結果: %s\n", out)
 	fmt.Println("Minecraft has stopped")
 
 }
@@ -82,7 +83,7 @@ func (s *server) LaunchSSNet(path string) {
 
 func (s *server) getOutput(stdout io.Reader, callback func(string) string) {
 	reader := bufio.NewReader(stdout)
-	for range s.stop { // 書いたのCopilotだから理解できてない。後で調べよう
+	for { // 書いたのCopilotだから理解できてない。後で調べよう
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
@@ -93,7 +94,7 @@ func (s *server) getOutput(stdout io.Reader, callback func(string) string) {
 		}
 		// 処理
 		processedLine := callback(line)
-		fmt.Print(processedLine)
+		fmt.Print("test ", processedLine)
 	}
 }
 

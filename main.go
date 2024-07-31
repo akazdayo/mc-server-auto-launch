@@ -22,9 +22,9 @@ func main() {
 	s := server.NewServer(isRunning, controlURL, serverIP)
 	go s.LaunchMinecraft("./debug/test.sh")
 	go s.LaunchSSNet("./debug/ssnet.sh")
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 	fmt.Println("Stopping server")
 	s.QuitServer()
-	time.Sleep(3 * time.Second)
+	time.Sleep(2 * time.Second)
 	fmt.Println("Server has stopped")
 }
