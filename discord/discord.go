@@ -29,8 +29,8 @@ func NewDiscord() *Discord {
 	}
 
 	return &Discord{
-		token:     token,
-		channelID: channelID,
+		token:     token,     //超脆弱(ハードコーティング)
+		channelID: channelID, //超脆弱
 	}
 }
 

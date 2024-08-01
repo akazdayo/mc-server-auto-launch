@@ -12,7 +12,7 @@ import (
 	"github.com/akazdayo/mc-server-auto-launch/discord"
 )
 
-type server struct {
+type Server struct {
 	disbot     *discord.Discord
 	stop       chan struct{}
 	wg         sync.WaitGroup
@@ -21,8 +21,8 @@ type server struct {
 	serverIP   chan string
 }
 
-func NewServer(isRunning chan bool, controlURL chan string, serverIP chan string) *server {
-	return &server{
+func NewServer(isRunning chan bool, controlURL chan string, serverIP chan string) *Server {
+	return &Server{
 		discord.NewDiscord(),
 		make(chan struct{}),
 		sync.WaitGroup{},
@@ -32,7 +32,7 @@ func NewServer(isRunning chan bool, controlURL chan string, serverIP chan string
 	}
 }
 
-func (s *server) LaunchMinecraft(path string) {
+func (s *Server) LaunchMinecraft(path string) {
 	s.wg.Add(1)
 	defer s.wg.Done()
 	fmt.Println("Starting Minecraft")
@@ -50,6 +50,8 @@ func (s *server) LaunchMinecraft(path string) {
 
 	// 出力を表示
 	go s.getOutput(stdout, s.checkSSNOutput)
+	go s.sendCommand(stdin)
+	go s.saveCommand(stdin)
 
 	//終了時処理
 	<-s.stop
@@ -62,7 +64,7 @@ func (s *server) LaunchMinecraft(path string) {
 
 }
 
-func (s *server) LaunchSSNet(path string) {
+func (s *Server) LaunchSSNet(path string) {
 	s.wg.Add(1)
 	defer s.wg.Done()
 	fmt.Println("Starting Secure Share Net")
@@ -86,7 +88,7 @@ func (s *server) LaunchSSNet(path string) {
 	fmt.Println("Secure Share Net has stopped")
 }
 
-func (s *server) getOutput(stdout io.Reader, callback func(string) string) {
+func (s *Server) getOutput(stdout io.Reader, callback func(string) string) {
 	reader := bufio.NewReader(stdout)
 	for { // 書いたのCopilotだから理解できてない。後で調べよう
 		line, err := reader.ReadString('\n')
@@ -103,14 +105,30 @@ func (s *server) getOutput(stdout io.Reader, callback func(string) string) {
 	}
 }
 
-func (s *server) QuitServer() {
+func (s *Server) sendCommand(stdin io.WriteCloser) {
+	var command string
+	for {
+		fmt.Scan(&command)
+		fmt.Println("Command: ", command)
+		io.WriteString(stdin, command+"\n")
+	}
+}
+
+func (s *Server) saveCommand(stdin io.WriteCloser) {
+	for {
+		time.Sleep(120 * time.Second)
+		io.WriteString(stdin, "save-all\n")
+	}
+}
+
+func (s *Server) QuitServer() {
 	fmt.Println("Stopping server")
 	close(s.stop)
 	s.wg.Wait()
 }
 
 // 出力を加工する関数
-func (s *server) checkSSNOutput(output string) string {
+func (s *Server) checkSSNOutput(output string) string {
 	if strings.Contains(output, "コントロールURL") {
 		s.disbot.Send(output)
 	} else if strings.Contains(output, "公開開始") {

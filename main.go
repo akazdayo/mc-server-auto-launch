@@ -16,8 +16,14 @@ func main() {
 	s := server.NewServer(isRunning, controlURL, serverIP)
 	go s.LaunchMinecraft(os.Args[1])
 	go s.LaunchSSNet(os.Args[2])
-	time.Sleep(5 * time.Second)
+	for {
+		time.Sleep(10 * time.Second)
+		now := time.Now()
+		if now.Hour() >= 23 {
+			break
+		}
+	}
 	s.QuitServer()
-	time.Sleep(2 * time.Second)
+	time.Sleep(20 * time.Second)
 	fmt.Println("Server has stopped")
 }
